@@ -1,0 +1,957 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>USDT & 东南亚持牌合规交易所导航及汇率看板</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#ecfdf5',
+              500: '#10b981',
+              600: '#059669',
+              700: '#047857',
+            }
+          }
+        }
+      }
+    };
+  </script>
+  <style>
+    input[type="number"]::-webkit-inner-spin-button,
+    input[type="number"]::-webkit-outer-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
+    }
+    input[type="number"] {
+      -moz-appearance: textfield;
+    }
+    @keyframes pulse-fast {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+    .animate-pulse-fast {
+      animation: pulse-fast 1.2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 dark:bg-slate-950 dark:text-slate-100 transition-colors duration-300 min-h-screen flex flex-col font-sans">
+
+  <!-- 顶部导航栏 -->
+  <header class="border-b border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md sticky top-0 z-30">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+      <!-- 品牌标识 -->
+      <div class="flex items-center space-x-3">
+        <div class="w-9 h-9 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-500 font-bold text-lg">
+          ₮
+        </div>
+        <div>
+          <h1 id="nav-title" class="font-bold text-base sm:text-lg tracking-tight">USDT 合规汇率与出入金导航</h1>
+          <p id="nav-subtitle" class="text-xs text-slate-500 dark:text-slate-400 hidden sm:block">实时 API 测算 · 包含人民币及东南亚持牌交易所直达</p>
+        </div>
+      </div>
+
+      <!-- 右侧控制栏：API状态 + 语言选择 + 主题切换 -->
+      <div class="flex items-center space-x-2 sm:space-x-3">
+        <button onclick="fetchLiveRates(true)" id="api-status-btn" title="点击立即刷新实时汇率" class="hidden md:flex items-center space-x-2 px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs hover:border-emerald-500/50 transition">
+          <span id="status-dot" class="w-2 h-2 rounded-full bg-amber-400 animate-pulse-fast"></span>
+          <span id="status-text" class="text-slate-600 dark:text-slate-300 font-medium">正在同步汇率...</span>
+          <svg id="refresh-icon" class="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+          </svg>
+        </button>
+
+        <select id="lang-selector" onchange="changeLanguage(this.value)" class="bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs sm:text-sm rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer">
+          <option value="zh">简体中文</option>
+          <option value="en">English</option>
+          <option value="ms">Bahasa Melayu</option>
+          <option value="id">Bahasa Indonesia</option>
+          <option value="th">ไทย (Thai)</option>
+          <option value="vi">Tiếng Việt</option>
+        </select>
+
+        <button onclick="toggleTheme()" id="theme-btn" title="切换深色/浅色主题" class="p-2 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700 transition">
+          <svg id="icon-sun" class="w-4 h-4 hidden text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path>
+          </svg>
+          <svg id="icon-moon" class="w-4 h-4 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path>
+          </svg>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- 主体内容区 -->
+  <main class="flex-grow max-w-6xl w-full mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-8">
+
+    <!-- 安全与合规警示横幅 -->
+    <div class="rounded-xl bg-amber-500/10 border border-amber-500/30 p-4 flex items-start space-x-3">
+      <svg class="w-5 h-5 text-amber-500 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+      </svg>
+      <div class="text-xs sm:text-sm text-amber-800 dark:text-amber-200/90 leading-relaxed">
+        <span id="notice-title" class="font-semibold">合规与防冻卡声明：</span>
+        <span id="notice-desc">中国内地无合法合规的USDT兑换通道，CNY仅提供公开市场数据参考换算。东南亚法币请通过当地持牌合规机构（如 Luno、Coinbase、Bitkub 等）完成实名出入金，切勿私下点对点转账以防范账户冻结。</span>
+      </div>
+    </div>
+
+    <!-- 核心区：双向汇率换算器 + 多币种看板 -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      
+      <!-- 左侧：双向计算器 (占5列) -->
+      <div class="lg:col-span-5 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 sm:p-6 shadow-sm flex flex-col justify-between">
+        <div>
+          <div class="flex items-center justify-between mb-5">
+            <h2 id="calc-title" class="text-base sm:text-lg font-bold">双向汇率估算器</h2>
+            <span class="text-xs px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-medium">1 USDT ≈ <span id="active-rate-badge">--</span></span>
+          </div>
+
+          <!-- 输入框 1：USDT -->
+          <div class="space-y-1.5">
+            <label id="label-usdt" class="text-xs font-medium text-slate-500 dark:text-slate-400">USDT 数量</label>
+            <div class="relative flex items-center">
+              <input type="number" id="input-usdt" value="1000" min="0" step="any" oninput="calcFromUsdt()" class="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl py-3 pl-4 pr-24 text-lg font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+              <div class="absolute right-3 flex items-center space-x-1.5 bg-slate-200/70 dark:bg-slate-800 px-2.5 py-1 rounded-lg">
+                <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                <span class="text-xs font-bold">USDT</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- 切换方向装饰按钮 -->
+          <div class="flex justify-center my-3">
+            <div class="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-500">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"></path>
+              </svg>
+            </div>
+          </div>
+
+          <!-- 输入框 2：目标法币 (CNY + 东南亚五国) -->
+          <div class="space-y-1.5">
+            <label id="label-fiat" class="text-xs font-medium text-slate-500 dark:text-slate-400">折算目标法币 (支持反向输入)</label>
+            <div class="relative flex items-center">
+              <input type="number" id="input-fiat" value="0" min="0" step="any" oninput="calcFromFiat()" class="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl py-3 pl-4 pr-32 text-lg font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+              <select id="fiat-selector" onchange="onCurrencyChange()" class="absolute right-2 bg-slate-200/80 dark:bg-slate-800 text-xs font-bold rounded-lg px-2.5 py-1.5 focus:outline-none cursor-pointer">
+                <option value="CNY" selected>🇨🇳 CNY (参考)</option>
+                <option value="MYR">🇲🇾 MYR</option>
+                <option value="SGD">🇸🇬 SGD</option>
+                <option value="IDR">🇮🇩 IDR</option>
+                <option value="THB">🇹🇭 THB</option>
+                <option value="VND">🇻🇳 VND</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- 快捷金额按钮 -->
+          <div class="mt-4">
+            <p id="quick-amount-label" class="text-xs text-slate-400 mb-2">快捷数量 (USDT)：</p>
+            <div class="grid grid-cols-4 gap-2">
+              <button onclick="setQuickUsdt(100)" class="py-1.5 text-xs font-medium rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-emerald-500/15 hover:text-emerald-500 transition">100</button>
+              <button onclick="setQuickUsdt(500)" class="py-1.5 text-xs font-medium rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-emerald-500/15 hover:text-emerald-500 transition">500</button>
+              <button onclick="setQuickUsdt(1000)" class="py-1.5 text-xs font-medium rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-emerald-500/15 hover:text-emerald-500 transition">1,000</button>
+              <button onclick="setQuickUsdt(5000)" class="py-1.5 text-xs font-medium rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-emerald-500/15 hover:text-emerald-500 transition">5,000</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 底部汇率微调折叠区 -->
+        <div class="mt-6 pt-4 border-t border-slate-200 dark:border-slate-800">
+          <button onclick="toggleRateEditor()" class="w-full flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 hover:text-emerald-500 transition">
+            <span id="edit-rate-btn-text">⚙️ 手动微调或锁定参考汇率</span>
+            <span id="editor-arrow">▼</span>
+          </button>
+          <div id="rate-editor-panel" class="hidden mt-3 space-y-2.5 pt-2">
+            <div id="rate-editor-grid" class="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              <!-- 动态生成汇率输入框 -->
+            </div>
+            <p id="manual-mode-hint" class="text-[11px] text-slate-400">修改任意数值将切换为手动锁定模式，点击「同步实时汇率」可恢复自动更新。</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- 右侧：六大币种全景实时参考卡片 (占7列) -->
+      <div class="lg:col-span-7 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 sm:p-6 shadow-sm flex flex-col justify-between">
+        <div>
+          <div class="flex flex-wrap items-center justify-between gap-2 mb-4">
+            <div>
+              <h2 id="board-title" class="text-base sm:text-lg font-bold">全景实时汇率参考看板</h2>
+              <p id="board-subtitle" class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">当前以 <span id="summary-usdt-count" class="font-bold text-emerald-500">1,000</span> USDT 为基准自动折算</p>
+            </div>
+            <button onclick="fetchLiveRates(true)" id="sync-btn" class="text-xs px-3 py-1.5 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/20 font-medium transition flex items-center space-x-1.5">
+              <span>🔄</span>
+              <span id="sync-btn-text">同步实时汇率</span>
+            </button>
+          </div>
+
+          <!-- 6个币种卡片网格 -->
+          <div id="currency-cards-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
+            <!-- 由 JS 动态渲染 -->
+          </div>
+        </div>
+
+        <div class="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800/80 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-[11px] text-slate-400 dark:text-slate-500">
+          <p id="rate-disclaimer">* 点击任意币种卡片可将其设为左侧主力计算币种。</p>
+          <p id="api-source-info" class="font-mono">Source: CoinGecko / Open-ER API</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- 下半部分：东南亚持牌交易所直达导航 -->
+    <section class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 sm:p-6 shadow-sm">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+        <div>
+          <h2 id="guide-title" class="text-base sm:text-lg font-bold">东南亚各国持牌合规交易所直达通道</h2>
+          <p id="guide-subtitle" class="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">
+            选择所在国家，直接前往受当地金融监管机构认可的合规平台完成实名注册与法定货币兑换。
+          </p>
+        </div>
+
+        <!-- 国家筛选标签栏 -->
+        <div id="country-filter-tabs" class="flex flex-wrap gap-1.5">
+          <button onclick="filterExchanges('ALL')" data-filter="ALL" class="filter-tab px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-500 text-white transition shadow-sm">
+            🌏 全部 (ALL)
+          </button>
+          <button onclick="filterExchanges('MYR')" data-filter="MYR" class="filter-tab px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition">
+            🇲🇾 马来西亚
+          </button>
+          <button onclick="filterExchanges('SGD')" data-filter="SGD" class="filter-tab px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition">
+            🇸🇬 新加坡
+          </button>
+          <button onclick="filterExchanges('IDR')" data-filter="IDR" class="filter-tab px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition">
+            🇮🇩 印度尼西亚
+          </button>
+          <button onclick="filterExchanges('THB')" data-filter="THB" class="filter-tab px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition">
+            🇹🇭 泰国
+          </button>
+          <button onclick="filterExchanges('VND')" data-filter="VND" class="filter-tab px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition">
+            🇻🇳 越南
+          </button>
+        </div>
+      </div>
+
+      <!-- 交易所卡片列表 -->
+      <div id="exchanges-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <!-- 由 JS 动态渲染 -->
+      </div>
+    </section>
+
+  </main>
+
+  <!-- 页脚 -->
+  <footer class="border-t border-slate-200 dark:border-slate-800 py-5 mt-8">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-500 dark:text-slate-400 space-y-2 sm:space-y-0">
+      <p id="footer-note">仅作实时公共汇率参考与官方持牌交易所导航使用 · 不提供任何资金托管或撮合服务</p>
+      <p class="font-medium">Live Public Rates & SEA Licensed Exchanges Directory</p>
+    </div>
+  </footer>
+
+  <script>
+    // 兜底参考汇率配置
+    const FALLBACK_RATES = {
+      CNY: 7.25,
+      MYR: 4.45,
+      SGD: 1.35,
+      IDR: 15850,
+      THB: 34.50,
+      VND: 25400
+    };
+
+    let rates = { ...FALLBACK_RATES };
+    let isManualMode = false;
+    let currentLang = 'zh';
+    let currentFilter = 'ALL';
+    let lastUpdateTime = null;
+    let activeDataSource = 'Initializing...';
+
+    // 6国货币基础元数据
+    const CURRENCY_META = {
+      CNY: {
+        flag: '🇨🇳',
+        symbol: '¥',
+        decimals: 2,
+        name: { zh: '人民币 (CNY [参考])', en: 'Chinese Yuan (CNY [Ref])', ms: 'Yuan China (CNY)', id: 'Yuan Tiongkok (CNY)', th: 'หยวนจีน (CNY)', vi: 'Nhân dân tệ (CNY)' }
+      },
+      MYR: {
+        flag: '🇲🇾',
+        symbol: 'RM',
+        decimals: 2,
+        name: { zh: '马来西亚令吉 (MYR)', en: 'Malaysian Ringgit (MYR)', ms: 'Ringgit Malaysia (MYR)', id: 'Ringgit Malaysia (MYR)', th: 'ริงกิตมาเลเซีย (MYR)', vi: 'Ringgit Malaysia (MYR)' }
+      },
+      SGD: {
+        flag: '🇸🇬',
+        symbol: 'S$',
+        decimals: 2,
+        name: { zh: '新加坡元 (SGD)', en: 'Singapore Dollar (SGD)', ms: 'Dolar Singapura (SGD)', id: 'Dolar Singapura (SGD)', th: 'ดอลลาร์สิงคโปร์ (SGD)', vi: 'Đô la Singapore (SGD)' }
+      },
+      IDR: {
+        flag: '🇮🇩',
+        symbol: 'Rp',
+        decimals: 0,
+        name: { zh: '印度尼西亚盾 (IDR)', en: 'Indonesian Rupiah (IDR)', ms: 'Rupiah Indonesia (IDR)', id: 'Rupiah Indonesia (IDR)', th: 'รูเปียห์อินโดนีเซีย (IDR)', vi: 'Rupiah Indonesia (IDR)' }
+      },
+      THB: {
+        flag: '🇹🇭',
+        symbol: '฿',
+        decimals: 2,
+        name: { zh: '泰铢 (THB)', en: 'Thai Baht (THB)', ms: 'Baht Thailand (THB)', id: 'Baht Thailand (THB)', th: 'บาทไทย (THB)', vi: 'Baht Thái Lan (THB)' }
+      },
+      VND: {
+        flag: '🇻🇳',
+        symbol: '₫',
+        decimals: 0,
+        name: { zh: '越南盾 (VND)', en: 'Vietnamese Dong (VND)', ms: 'Dong Vietnam (VND)', id: 'Dong Vietnam (VND)', th: 'ดองเวียดนาม (VND)', vi: 'Đồng Việt Nam (VND)' }
+      }
+    };
+
+    // 东南亚各国持牌合规交易所官方名录
+    const LICENSED_EXCHANGES = [
+      {
+        countryCode: 'MYR',
+        flag: '🇲🇾',
+        countryName: { zh: '马来西亚', en: 'Malaysia', ms: 'Malaysia', id: 'Malaysia', th: 'มาเลเซีย', vi: 'Malaysia' },
+        name: 'Luno Malaysia',
+        regulator: 'SC Malaysia (RMO-DAX)',
+        paymentMethods: 'DuitNow / FPX / Local Bank Transfer',
+        url: 'https://www.luno.com/en-MY',
+        desc: {
+          zh: '马来西亚首家获证券委员会 (SC) 批准的持牌数字资产交易所，支持马币本地银行快捷存取。',
+          en: 'First SC-regulated digital asset exchange in Malaysia supporting instant MYR bank transfers.',
+          ms: 'Bursa aset digital pertama dikawal selia SC di Malaysia menyokong pindahan bank MYR.',
+          id: 'Bursa aset digital pertama berlisensi SC di Malaysia yang mendukung transfer bank MYR.',
+          th: 'แพลตฟอร์มแรกที่ได้รับอนุญาตจาก ก.ล.ต. มาเลเซีย รองรับการโอนเงิน MYR ผ่านธนาคารท้องถิ่น',
+          vi: 'Sàn giao dịch tài sản số đầu tiên được SC Malaysia cấp phép, hỗ trợ nạp rút MYR qua ngân hàng.'
+        }
+      },
+      {
+        countryCode: 'MYR',
+        flag: '🇲🇾',
+        countryName: { zh: '马来西亚', en: 'Malaysia', ms: 'Malaysia', id: 'Malaysia', th: 'มาเลเซีย', vi: 'Malaysia' },
+        name: 'HATA Digital',
+        regulator: 'SC Malaysia (RMO-DAX)',
+        paymentMethods: 'FPX / DuitNow / MYR Bank',
+        url: 'https://hata.io/my',
+        desc: {
+          zh: '获马来西亚 SC 正式颁牌的合规数字资产交易与经纪平台，支持原生 USDT/MYR 交易对。',
+          en: 'SC-licensed digital asset exchange & broker in Malaysia with direct USDT/MYR trading pairs.',
+          ms: 'Bursa & broker aset digital berlesen SC di Malaysia dengan pasangan dagangan terus USDT/MYR.',
+          id: 'Bursa & broker aset digital berlisensi SC di Malaysia dengan pasangan perdagangan langsung USDT/MYR.',
+          th: 'แพลตฟอร์มที่ได้รับใบอนุญาตจาก SC มาเลเซีย รองรับคู่เทรด USDT/MYR โดยตรง',
+          vi: 'Sàn giao dịch được SC Malaysia cấp phép, hỗ trợ giao dịch trực tiếp cặp USDT/MYR.'
+        }
+      },
+      {
+        countryCode: 'SGD',
+        flag: '🇸🇬',
+        countryName: { zh: '新加坡', en: 'Singapore', ms: 'Singapura', id: 'Singapura', th: 'สิงคโปร์', vi: 'Singapore' },
+        name: 'Coinbase Singapore',
+        regulator: 'MAS Licensed (MPI - DPT)',
+        paymentMethods: 'PayNow / FAST Bank Transfer',
+        url: 'https://www.coinbase.com/en-sg',
+        desc: {
+          zh: '持有新加坡金融管理局 (MAS) 主要支付机构牌照，支持通过 PayNow 免费即时存取新币。',
+          en: 'Holds MAS Major Payment Institution licence; supports instant free SGD transfers via PayNow.',
+          ms: 'Memegang lesen Institusi Pembayaran Utama MAS; menyokong pindahan SGD segera melalui PayNow.',
+          id: 'Memegang lisensi Institusi Pembayaran Utama MAS; mendukung transfer SGD instan via PayNow.',
+          th: 'ได้รับใบอนุญาต MPI จาก MAS สิงคโปร์ รองรับการโอน SGD ทันทีผ่าน PayNow',
+          vi: 'Có giấy phép MPI của MAS Singapore; hỗ trợ nạp rút SGD tức thì qua PayNow.'
+        }
+      },
+      {
+        countryCode: 'SGD',
+        flag: '🇸🇬',
+        countryName: { zh: '新加坡', en: 'Singapore', ms: 'Singapura', id: 'Singapura', th: 'สิงคโปร์', vi: 'Singapore' },
+        name: 'Coinhako',
+        regulator: 'MAS Licensed (MPI - DPT)',
+        paymentMethods: 'PayNow / FAST / Bank Transfer',
+        url: 'https://www.coinhako.com',
+        desc: {
+          zh: '新加坡本土老牌 MAS 持牌数字支付代币服务商，深度适配本地银行与 PayNow 快捷支付。',
+          en: 'Established Singapore MAS-licensed DPT provider seamlessly integrated with PayNow & FAST.',
+          ms: 'Penyedia DPT berlesen MAS Singapura yang bersepadu dengan PayNow & FAST.',
+          id: 'Penyedia layanan DPT berlisensi MAS Singapura yang terintegrasi dengan PayNow & FAST.',
+          th: 'ผู้ให้บริการ DPT ที่ได้รับใบอนุญาตจาก MAS สิงคโปร์ เชื่อมต่อกับ PayNow และ FAST อย่างราบรื่น',
+          vi: 'Nhà cung cấp dịch vụ DPT lâu đời được MAS cấp phép tại Singapore, tích hợp PayNow & FAST.'
+        }
+      },
+      {
+        countryCode: 'IDR',
+        flag: '🇮🇩',
+        countryName: { zh: '印度尼西亚', en: 'Indonesia', ms: 'Indonesia', id: 'Indonesia', th: 'อินโดนีเซีย', vi: 'Indonesia' },
+        name: 'Indodax',
+        regulator: 'OJK / Bappebti Licensed',
+        paymentMethods: 'BCA / Mandiri / BRI / QRIS / E-Wallets',
+        url: 'https://indodax.com',
+        desc: {
+          zh: '印尼历史最悠久且获官方全面牌照的数字资产交易所，支持主流印尼银行及电子钱包入金。',
+          en: 'Indonesia’s largest & longest-running licensed crypto exchange supporting local banks & QRIS.',
+          ms: 'Bursa kripto berlesen terbesar di Indonesia yang menyokong bank tempatan & QRIS.',
+          id: 'Bursa aset kripto berlisensi penuh terbesar di Indonesia, mendukung transfer bank & QRIS.',
+          th: 'แพลตฟอร์มซื้อขายคริปโตที่ได้รับใบอนุญาตเต็มรูปแบบที่ใหญ่ที่สุดในอินโดนีเซีย รองรับธนาคารท้องถิ่น',
+          vi: 'Sàn giao dịch tiền mã hóa được cấp phép lớn nhất Indonesia, hỗ trợ ngân hàng nội địa & QRIS.'
+        }
+      },
+      {
+        countryCode: 'IDR',
+        flag: '🇮🇩',
+        countryName: { zh: '印度尼西亚', en: 'Indonesia', ms: 'Indonesia', id: 'Indonesia', th: 'อินโดนีเซีย', vi: 'Indonesia' },
+        name: 'Tokocrypto',
+        regulator: 'OJK / Bappebti Licensed',
+        paymentMethods: 'Permata / BRI / GoPay / OVO / DANA',
+        url: 'https://www.tokocrypto.com',
+        desc: {
+          zh: '印尼首批获得完整监管牌照的合规交易平台，支持 GoPay、OVO、DANA 及银行虚拟账户充值。',
+          en: 'Fully licensed Indonesian exchange supporting GoPay, OVO, DANA, and bank virtual accounts.',
+          ms: 'Bursa berlesen penuh Indonesia menyokong GoPay, OVO, DANA dan akaun maya bank.',
+          id: 'Pedagang fisik aset kripto berlisensi resmi, mendukung deposit via GoPay, OVO, DANA & bank.',
+          th: 'แพลตฟอร์มที่ได้รับใบอนุญาตอย่างเป็นทางการในอินโดนีเซีย รองรับ GoPay, OVO, DANA และบัญชีธนาคาร',
+          vi: 'Sàn giao dịch được cấp phép chính thức tại Indonesia, hỗ trợ nạp qua GoPay, OVO, DANA và ngân hàng.'
+        }
+      },
+      {
+        countryCode: 'THB',
+        flag: '🇹🇭',
+        countryName: { zh: '泰国', en: 'Thailand', ms: 'Thailand', id: 'Thailand', th: 'ไทย', vi: 'Thái Lan' },
+        name: 'Bitkub',
+        regulator: 'Thailand SEC Licensed',
+        paymentMethods: 'Thai QR PromptPay / KBank / SCB / BBL',
+        url: 'https://www.bitkub.com',
+        desc: {
+          zh: '泰国交易量最大的 SEC 持牌数字资产交易所，支持泰国本地银行账户及 QR 扫码极速存取泰铢。',
+          en: 'Thailand’s largest SEC-licensed digital asset exchange supporting instant THB QR & bank transfers.',
+          ms: 'Bursa aset digital berlesen SEC terbesar di Thailand menyokong pindahan bank THB & QR.',
+          id: 'Bursa aset digital berlisensi SEC terbesar di Thailand yang mendukung transfer bank THB & QR.',
+          th: 'ศูนย์ซื้อขายสินทรัพย์ดิจิทัลอันดับ 1 ที่ได้รับใบอนุญาตจาก ก.ล.ต. ไทย รองรับ QR Payment และธนาคารไทย',
+          vi: 'Sàn giao dịch tài sản số lớn nhất Thái Lan được SEC cấp phép, hỗ trợ QR PromptPay & ngân hàng Thái.'
+        }
+      },
+      {
+        countryCode: 'THB',
+        flag: '🇹🇭',
+        countryName: { zh: '泰国', en: 'Thailand', ms: 'Thailand', id: 'Thailand', th: 'ไทย', vi: 'Thái Lan' },
+        name: 'Binance TH (Gulf Binance)',
+        regulator: 'Thailand SEC Licensed',
+        paymentMethods: 'Thai Bank Transfer / PromptPay QR',
+        url: 'https://www.binance.th',
+        desc: {
+          zh: '由 Gulf 与 Binance 合资设立并获泰国 SEC 颁牌的本地合规交易所，支持泰铢直接买卖 USDT。',
+          en: 'Thai SEC-licensed joint venture exchange offering direct THB/USDT trading pairs for Thai residents.',
+          ms: 'Bursa usaha sama berlesen SEC Thailand menawarkan pasangan dagangan terus THB/USDT.',
+          id: 'Bursa patungan berlisensi SEC Thailand yang menawarkan perdagangan langsung THB/USDT.',
+          th: 'ศูนย์ซื้อขายที่ได้รับใบอนุญาตจาก ก.ล.ต. ไทย รองรับการฝาก-ถอนเงินบาทและเทรดคู่ THB/USDT โดยตรง',
+          vi: 'Sàn liên doanh được SEC Thái Lan cấp phép, hỗ trợ giao dịch trực tiếp cặp THB/USDT.'
+        }
+      },
+      {
+        countryCode: 'VND',
+        flag: '🇻🇳',
+        countryName: { zh: '越南', en: 'Vietnam', ms: 'Vietnam', id: 'Vietnam', th: 'เวียดนาม', vi: 'Vietnam' },
+        name: 'Vietnam Regulatory Sandbox Portal (Decision 96)',
+        regulator: 'Ministry of Finance Sandbox',
+        paymentMethods: 'Verified Personal VND Bank Account (KYC)',
+        url: 'https://www.mof.gov.vn',
+        desc: {
+          zh: '越南已启动数字资产试点沙盒监管 (Decision 96/QĐ-BTC)。请成员仅通过获沙盒准入及具备严格同名银行卡风控的合规通道操作，切勿使用第三方代付。',
+          en: 'Vietnam operates a pilot crypto licensing sandbox (Decision 96/QĐ-BTC). Only use sandbox-compliant platforms and personal verified VND bank accounts.',
+          ms: 'Vietnam menjalankan sandbox pelesenan kripto perintis (Keputusan 96/QĐ-BTC). Gunakan akaun bank peribadi VND yang disahkan sahaja.',
+          id: 'Vietnam menjalankan sandbox perizinan kripto percontohan (Keputusan 96/QĐ-BTC). Gunakan rekening bank pribadi VND terverifikasi.',
+          th: 'เวียดนามใช้กรอบการกำกับดูแล Sandbox นำร่อง (Decision 96/QĐ-BTC) โปรดใช้บัญชีธนาคารเวียดนามชื่อตนเองที่ผ่านการยืนยันตัวตนเท่านั้น',
+          vi: 'Việt Nam triển khai khung thí điểm thị trường tài sản mã hóa (Quyết định 96/QĐ-BTC). Chỉ giao dịch qua đơn vị tuân thủ thí điểm và tài khoản ngân hàng chính chủ.'
+        }
+      }
+    ];
+
+    // 多语言文案字典
+    const I18N = {
+      zh: {
+        navTitle: 'USDT 合规汇率与出入金导航',
+        navSubtitle: '实时 API 测算 · 包含人民币及东南亚持牌交易所直达',
+        noticeTitle: '合规与防冻卡声明：',
+        noticeDesc: '中国内地无合法合规的USDT兑换通道，CNY仅提供公开市场数据参考换算。东南亚法币请通过当地持牌合规机构（如 Luno、Coinbase、Bitkub 等）完成实名出入金，切勿私下点对点转账以防范账户冻结。',
+        calcTitle: '双向汇率估算器',
+        labelUsdt: 'USDT 数量',
+        labelFiat: '折算目标法币 (支持反向输入)',
+        quickAmountLabel: '快捷数量 (USDT)：',
+        editRateBtn: '⚙️ 手动微调或锁定参考汇率',
+        manualModeHint: '修改任意数值将切换为手动锁定模式，点击「同步实时汇率」可恢复自动更新。',
+        boardTitle: '全景实时汇率参考看板',
+        boardSubtitlePrefix: '当前以',
+        boardSubtitleSuffix: 'USDT 为基准自动折算',
+        syncBtnText: '同步实时汇率',
+        rateDisclaimer: '* 点击任意币种卡片可将其设为左侧主力计算币种。',
+        guideTitle: '东南亚各国持牌合规交易所直达通道',
+        guideSubtitle: '选择所在国家，直接前往受当地金融监管机构认可的合规平台完成实名注册与法定货币兑换。',
+        visitBtnText: '前往官方持牌平台',
+        paymentLabel: '支持出入金方式：',
+        footerNote: '仅作实时公共汇率参考与官方持牌交易所导航使用 · 不提供任何资金托管或撮合服务',
+        statusSyncing: '正在拉取实时汇率...',
+        statusLive: '实时同步于',
+        statusManual: '已手动锁定汇率',
+        statusFallback: '离线缓存汇率',
+        filterAll: '🌏 全部 (ALL)'
+      },
+      en: {
+        navTitle: 'USDT Rate Board & Licensed Directory',
+        navSubtitle: 'Live Public Rates · Regulated Platforms',
+        noticeTitle: 'Compliance & Security Notice: ',
+        noticeDesc: 'No licensed USDT exchangers exist in Mainland China; CNY is for reference only. Use locally regulated platforms in Southeast Asia (Luno, Coinbase, Bitkub, etc.) for safe fiat on/off-ramps.',
+        calcTitle: 'Two-Way Rate Calculator',
+        labelUsdt: 'USDT Amount',
+        labelFiat: 'Estimated Target Fiat (Editable)',
+        quickAmountLabel: 'Quick Amount (USDT):',
+        editRateBtn: '⚙️ Manually Override / Lock Rates',
+        manualModeHint: 'Editing values switches to Manual Lock mode. Click "Sync Live Rates" to resume auto-updates.',
+        boardTitle: 'Live Multi-Currency Reference Board',
+        boardSubtitlePrefix: 'Calculated based on',
+        boardSubtitleSuffix: 'USDT',
+        syncBtnText: 'Sync Live Rates',
+        rateDisclaimer: '* Click any currency card to select it in the calculator.',
+        guideTitle: 'Licensed Crypto Exchanges in Southeast Asia',
+        guideSubtitle: 'Select your country to visit regulated platforms authorized by local financial authorities.',
+        visitBtnText: 'Visit Official Platform',
+        paymentLabel: 'Supported Rails:',
+        footerNote: 'For live rate reference & licensed exchange navigation only · No custody or OTC brokerage',
+        statusSyncing: 'Syncing live rates...',
+        statusLive: 'Live updated',
+        statusManual: 'Manual rate lock',
+        statusFallback: 'Cached rates',
+        filterAll: '🌏 All (ALL)'
+      },
+      ms: {
+        navTitle: 'Papan Kadar & Direktori Berlesen USDT',
+        navSubtitle: 'Kadar Pasaran Langsung · Platform Dikawal Selia',
+        noticeTitle: 'Notis Pematuhan & Keselamatan: ',
+        noticeDesc: 'Tiada pengurup USDT sah di Tanah Besar China; CNY hanya untuk rujukan. Gunakan platform berlesen di Asia Tenggara untuk deposit/pengeluaran selamat.',
+        calcTitle: 'Kalkulator Kadar Dua Hala',
+        labelUsdt: 'Jumlah USDT',
+        labelFiat: 'Anggaran Mata Wang Sasaran',
+        quickAmountLabel: 'Jumlah Pantas (USDT):',
+        editRateBtn: '⚙️ Laraskan / Kunci Kadar Manual',
+        manualModeHint: 'Mengubah nilai akan mengaktifkan mod Kunci Manual. Klik "Segerak Kadar" untuk kembali automatik.',
+        boardTitle: 'Paparan Kadar Rujukan Langsung',
+        boardSubtitlePrefix: 'Dikira berdasarkan',
+        boardSubtitleSuffix: 'USDT',
+        syncBtnText: 'Segerak Kadar',
+        rateDisclaimer: '* Klik mana-mana kad mata wang untuk memilihnya dalam kalkulator.',
+        guideTitle: 'Bursa Kripto Berlesen di Asia Tenggara',
+        guideSubtitle: 'Pilih negara anda untuk melawat platform rasmi yang diiktiraf pihak berkuasa tempatan.',
+        visitBtnText: 'Lawati Platform Rasmi',
+        paymentLabel: 'Saluran Pembayaran:',
+        footerNote: 'Untuk rujukan kadar langsung & navigasi bursa berlesen sahaja',
+        statusSyncing: 'Menyegerak kadar...',
+        statusLive: 'Dikemas kini',
+        statusManual: 'Kadar dikunci manual',
+        statusFallback: 'Kadar sandaran',
+        filterAll: '🌏 Semua (ALL)'
+      },
+      id: {
+        navTitle: 'Papan Kurs & Direktori Berlisensi USDT',
+        navSubtitle: 'Kurs Pasar Real-Time · Platform Resmi',
+        noticeTitle: 'Pemberitahuan Kepatuhan & Keamanan: ',
+        noticeDesc: 'Tidak ada penukar USDT legal di Tiongkok Daratan; CNY hanya untuk referensi. Gunakan platform berlisensi di Asia Tenggara untuk transaksi aman.',
+        calcTitle: 'Kalkulator Kurs Dua Arah',
+        labelUsdt: 'Jumlah USDT',
+        labelFiat: 'Estimasi Mata Uang Target',
+        quickAmountLabel: 'Jumlah Cepat (USDT):',
+        editRateBtn: '⚙️ Sesuaikan / Kunci Kurs Manual',
+        manualModeHint: 'Mengubah angka mengaktifkan mode Kunci Manual. Klik "Sinkronkan Kurs" untuk kembali otomatis.',
+        boardTitle: 'Ringkasan Kurs Referensi Real-Time',
+        boardSubtitlePrefix: 'Dihitung berdasarkan',
+        boardSubtitleSuffix: 'USDT',
+        syncBtnText: 'Sinkronkan Kurs',
+        rateDisclaimer: '* Klik kartu mata uang mana saja untuk menghitung di kalkulator.',
+        guideTitle: 'Bursa Kripto Berlisensi di Asia Tenggara',
+        guideSubtitle: 'Pilih negara Anda untuk mengunjungi platform resmi yang diawasi otoritas keuangan setempat.',
+        visitBtnText: 'Kunjungi Situs Resmi',
+        paymentLabel: 'Metode Pembayaran:',
+        footerNote: 'Hanya untuk referensi kurs & navigasi bursa berlisensi resmi',
+        statusSyncing: 'Menyinkronkan kurs...',
+        statusLive: 'Diperbarui',
+        statusManual: 'Kurs dikunci manual',
+        statusFallback: 'Kurs cadangan',
+        filterAll: '🌏 Semua (ALL)'
+      },
+      th: {
+        navTitle: 'กระดานเรต USDT และรายชื่อศูนย์ซื้อขายที่ได้รับใบอนุญาต',
+        navSubtitle: 'อัตราแลกเปลี่ยนเรียลไทม์ · แพลตฟอร์มถูกกฎหมาย',
+        noticeTitle: 'ประกาศด้านความปลอดภัย: ',
+        noticeDesc: 'ไม่มีผู้ให้บริการแลกเปลี่ยน USDT ที่ถูกกฎหมายในจีนแผ่นดินใหญ่ CNY มีไว้เพื่ออ้างอิงเท่านั้น โปรดใช้แพลตฟอร์มที่ได้รับใบอนุญาตในอาเซียน',
+        calcTitle: 'เครื่องคำนวณอัตราแลกเปลี่ยนสองทาง',
+        labelUsdt: 'จำนวน USDT',
+        labelFiat: 'จำนวนเงินเป้าหมายโดยประมาณ',
+        quickAmountLabel: 'จำนวนด่วน (USDT):',
+        editRateBtn: '⚙️ ปรับแต่งหรือล็อกอัตราด้วยตนเอง',
+        manualModeHint: 'การแก้ไขตัวเลขจะเปลี่ยนเป็นโหมดล็อกด้วยตนเอง กด "ซิงค์อัตราเรียลไทม์" เพื่ออัปเดตอัตโนมัติ',
+        boardTitle: 'ภาพรวมอัตราแลกเปลี่ยนเรียลไทม์',
+        boardSubtitlePrefix: 'คำนวณจากฐาน',
+        boardSubtitleSuffix: 'USDT',
+        syncBtnText: 'ซิงค์อัตราเรียลไทม์',
+        rateDisclaimer: '* คลิกที่การ์ดสกุลเงินเพื่อเลือกคำนวณทางด้านซ้าย',
+        guideTitle: 'ศูนย์ซื้อขายสินทรัพย์ดิจิทัลที่ได้รับใบอนุญาตในเอเชียตะวันออกเฉียงใต้',
+        guideSubtitle: 'เลือกประเทศของคุณเพื่อไปยังแพลตฟอร์มที่อยู่ภายใต้การกำกับดูแลอย่างถูกต้องตามกฎหมาย',
+        visitBtnText: 'ไปยังแพลตฟอร์มทางการ',
+        paymentLabel: 'ช่องทางฝาก-ถอน:',
+        footerNote: 'สำหรับใช้อ้างอิงอัตราแลกเปลี่ยนและแนะนำแพลตฟอร์มที่ได้รับใบอนุญาตเท่านั้น',
+        statusSyncing: 'กำลังซิงค์อัตรา...',
+        statusLive: 'อัปเดตเมื่อ',
+        statusManual: 'ล็อกอัตราด้วยตนเอง',
+        statusFallback: 'อัตราสำรอง',
+        filterAll: '🌏 ทั้งหมด (ALL)'
+      },
+      vi: {
+        navTitle: 'Bảng Tỷ Giá & Thư Mục Sàn Cấp Phép USDT',
+        navSubtitle: 'Tỷ Giá Trực Tiếp · Nền Tảng Hợp Pháp',
+        noticeTitle: 'Tuyên Bố Tuân Thủ: ',
+        noticeDesc: 'Không có dịch vụ đổi USDT hợp pháp tại Trung Quốc đại lục; CNY chỉ mang tính tham khảo. Hãy sử dụng các sàn giao dịch hợp pháp tại ĐNÁ để nạp rút an toàn.',
+        calcTitle: 'Công Cụ Tính Tỷ Giá Hai Chiều',
+        labelUsdt: 'Số lượng USDT',
+        labelFiat: 'Quy đổi tiền tệ mục tiêu',
+        quickAmountLabel: 'Chọn nhanh số lượng (USDT):',
+        editRateBtn: '⚙️ Tùy chỉnh hoặc khóa tỷ giá thủ công',
+        manualModeHint: 'Chỉnh sửa số liệu sẽ bật chế độ Khóa Thủ Công. Nhấn "Đồng bộ tỷ giá" để cập nhật tự động.',
+        boardTitle: 'Tổng Quan Tỷ Giá Tham Khảo Trực Tiếp',
+        boardSubtitlePrefix: 'Quy đổi dựa trên',
+        boardSubtitleSuffix: 'USDT',
+        syncBtnText: 'Đồng bộ tỷ giá',
+        rateDisclaimer: '* Nhấp vào thẻ tiền tệ bất kỳ để chọn làm tiền tệ tính toán chính.',
+        guideTitle: 'Các Sàn Giao Dịch Tiền Mã Hóa Được Cấp Phép Tại ĐNÁ',
+        guideSubtitle: 'Chọn quốc gia của bạn để truy cập trực tiếp các nền tảng hợp pháp được cơ quan tài chính quản lý.',
+        visitBtnText: 'Truy cập sàn chính thức',
+        paymentLabel: 'Kênh thanh toán:',
+        footerNote: 'Chỉ mang tính chất tham khảo tỷ giá & điều hướng sàn được cấp phép',
+        statusSyncing: 'Đang đồng bộ...',
+        statusLive: 'Cập nhật lúc',
+        statusManual: 'Đã khóa thủ công',
+        statusFallback: 'Tỷ giá dự phòng',
+        filterAll: '🌏 Tất cả (ALL)'
+      }
+    };
+
+    // 双源公共 API 自动获取实时汇率
+    async function fetchLiveRates(forceSync = false) {
+      if (isManualMode && !forceSync) return;
+      if (forceSync) isManualMode = false;
+
+      updateStatusUI('syncing');
+
+      try {
+        const cgResponse = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=tether&vs_currencies=cny,myr,sgd,idr,thb,vnd', {
+          cache: 'no-store'
+        });
+
+        if (!cgResponse.ok) throw new Error('CoinGecko API limit');
+        const cgData = await cgResponse.json();
+
+        if (cgData && cgData.tether) {
+          rates = {
+            CNY: cgData.tether.cny || FALLBACK_RATES.CNY,
+            MYR: cgData.tether.myr || FALLBACK_RATES.MYR,
+            SGD: cgData.tether.sgd || FALLBACK_RATES.SGD,
+            IDR: cgData.tether.idr || FALLBACK_RATES.IDR,
+            THB: cgData.tether.thb || FALLBACK_RATES.THB,
+            VND: cgData.tether.vnd || FALLBACK_RATES.VND
+          };
+          activeDataSource = 'CoinGecko Live API';
+          lastUpdateTime = new Date();
+          updateStatusUI('live');
+          onRatesUpdated();
+          return;
+        }
+        throw new Error('Invalid CoinGecko payload');
+      } catch (primaryErr) {
+        try {
+          const erResponse = await fetch('https://open.er-api.com/v6/latest/USD', {
+            cache: 'no-store'
+          });
+          if (!erResponse.ok) throw new Error('Backup API failed');
+          const erData = await erResponse.json();
+
+          if (erData && erData.rates) {
+            rates = {
+              CNY: Number(erData.rates.CNY.toFixed(4)) || FALLBACK_RATES.CNY,
+              MYR: Number(erData.rates.MYR.toFixed(4)) || FALLBACK_RATES.MYR,
+              SGD: Number(erData.rates.SGD.toFixed(4)) || FALLBACK_RATES.SGD,
+              IDR: Math.round(erData.rates.IDR) || FALLBACK_RATES.IDR,
+              THB: Number(erData.rates.THB.toFixed(4)) || FALLBACK_RATES.THB,
+              VND: Math.round(erData.rates.VND) || FALLBACK_RATES.VND
+            };
+            activeDataSource = 'Open-ER Forex API';
+            lastUpdateTime = new Date();
+            updateStatusUI('live');
+            onRatesUpdated();
+            return;
+          }
+        } catch (backupErr) {
+          activeDataSource = 'Offline Fallback';
+          updateStatusUI('fallback');
+          onRatesUpdated();
+        }
+      }
+    }
+
+    function onRatesUpdated() {
+      document.getElementById('api-source-info').textContent = `Source: ${activeDataSource}`;
+      renderRateEditor();
+      calcFromUsdt();
+    }
+
+    function updateStatusUI(state) {
+      const dot = document.getElementById('status-dot');
+      const text = document.getElementById('status-text');
+      const refreshIcon = document.getElementById('refresh-icon');
+      const t = I18N[currentLang];
+
+      dot.className = 'w-2 h-2 rounded-full';
+      refreshIcon.classList.remove('animate-spin');
+
+      if (state === 'syncing') {
+        dot.classList.add('bg-amber-400', 'animate-pulse-fast');
+        refreshIcon.classList.add('animate-spin');
+        text.textContent = t.statusSyncing;
+      } else if (state === 'live') {
+        dot.classList.add('bg-emerald-500');
+        const timeStr = lastUpdateTime
+          ? lastUpdateTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+          : '';
+        text.textContent = `${t.statusLive} ${timeStr}`;
+      } else if (state === 'manual') {
+        dot.classList.add('bg-blue-500');
+        text.textContent = t.statusManual;
+      } else {
+        dot.classList.add('bg-slate-400');
+        text.textContent = t.statusFallback;
+      }
+    }
+
+    function formatNumber(num, decimals = 2) {
+      if (isNaN(num)) return '0';
+      return Number(num).toLocaleString('en-US', {
+        minimumFractionDigits: decimals,
+        maximumFractionDigits: decimals
+      });
+    }
+
+    function renderRateEditor() {
+      const container = document.getElementById('rate-editor-grid');
+      container.innerHTML = Object.keys(rates).map(code => `
+        <div class="bg-slate-50 dark:bg-slate-950 p-2 rounded-lg border border-slate-200 dark:border-slate-800">
+          <label class="block text-[11px] font-semibold text-slate-500 mb-1">${CURRENCY_META[code].flag} ${code}</label>
+          <input type="number" step="any" value="${rates[code]}" onchange="updateCustomRate('${code}', this.value)"
+            class="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded px-2 py-1 text-xs font-bold focus:outline-none focus:ring-1 focus:ring-emerald-500" />
+        </div>
+      `).join('');
+    }
+
+    function updateCustomRate(code, val) {
+      const parsed = parseFloat(val);
+      if (parsed > 0) {
+        rates[code] = parsed;
+        isManualMode = true;
+        activeDataSource = 'Manual Override';
+        document.getElementById('api-source-info').textContent = `Source: ${activeDataSource}`;
+        updateStatusUI('manual');
+        calcFromUsdt();
+      }
+    }
+
+    function toggleRateEditor() {
+      const panel = document.getElementById('rate-editor-panel');
+      const arrow = document.getElementById('editor-arrow');
+      panel.classList.toggle('hidden');
+      arrow.textContent = panel.classList.contains('hidden') ? '▼' : '▲';
+    }
+
+    function calcFromUsdt() {
+      const usdtVal = parseFloat(document.getElementById('input-usdt').value) || 0;
+      const selectedCurrency = document.getElementById('fiat-selector').value;
+      const rate = rates[selectedCurrency];
+      const decimals = CURRENCY_META[selectedCurrency].decimals;
+
+      const fiatResult = usdtVal * rate;
+      document.getElementById('input-fiat').value = decimals === 0 ? Math.round(fiatResult) : fiatResult.toFixed(decimals);
+      document.getElementById('active-rate-badge').textContent = `${formatNumber(rate, decimals)} ${selectedCurrency}`;
+      document.getElementById('summary-usdt-count').textContent = formatNumber(usdtVal, 0);
+
+      renderCurrencyCards(usdtVal, selectedCurrency);
+    }
+
+    function calcFromFiat() {
+      const fiatVal = parseFloat(document.getElementById('input-fiat').value) || 0;
+      const selectedCurrency = document.getElementById('fiat-selector').value;
+      const rate = rates[selectedCurrency];
+
+      const usdtResult = rate > 0 ? fiatVal / rate : 0;
+      document.getElementById('input-usdt').value = usdtResult.toFixed(2);
+      document.getElementById('summary-usdt-count').textContent = formatNumber(usdtResult, 2);
+
+      renderCurrencyCards(usdtResult, selectedCurrency);
+    }
+
+    function onCurrencyChange() {
+      const selectedCurrency = document.getElementById('fiat-selector').value;
+      calcFromUsdt();
+      if (selectedCurrency !== 'CNY') {
+        filterExchanges(selectedCurrency);
+      }
+    }
+
+    function selectCurrencyCard(code) {
+      document.getElementById('fiat-selector').value = code;
+      calcFromUsdt();
+      if (code !== 'CNY') {
+        filterExchanges(code);
+      }
+    }
+
+    function setQuickUsdt(amount) {
+      document.getElementById('input-usdt').value = amount;
+      calcFromUsdt();
+    }
+
+    // 渲染 6 大币种参考卡片
+    function renderCurrencyCards(usdtAmount, activeCode) {
+      const grid = document.getElementById('currency-cards-grid');
+      grid.innerHTML = Object.keys(CURRENCY_META).map(code => {
+        const meta = CURRENCY_META[code];
+        const rate = rates[code];
+        const total = usdtAmount * rate;
+        const isSelected = code === activeCode;
+
+        return `
+          <div onclick="selectCurrencyCard('${code}')" class="cursor-pointer rounded-xl p-4 border transition-all ${
+            isSelected
+              ? 'bg-emerald-500/10 border-emerald-500 shadow-sm'
+              : 'bg-slate-50 dark:bg-slate-950/60 border-slate-200 dark:border-slate-800 hover:border-emerald-500/50'
+          }">
+            <div class="flex items-center justify-between mb-2">
+              <div class="flex items-center space-x-2">
+                <span class="text-lg">${meta.flag}</span>
+                <span class="font-bold text-sm">${code}</span>
+              </div>
+              <span class="text-xs text-slate-500 dark:text-slate-400">1 USDT = ${formatNumber(rate, meta.decimals)}</span>
+            </div>
+            <div class="text-lg sm:text-xl font-extrabold tracking-tight text-slate-900 dark:text-white">
+              ${meta.symbol} ${formatNumber(total, meta.decimals)}
+            </div>
+            <div class="text-[11px] text-slate-500 dark:text-slate-400 mt-1 truncate">
+              ${meta.name[currentLang]}
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // 筛选并渲染东南亚持牌合规交易所卡片
+    function filterExchanges(filterCode) {
+      currentFilter = filterCode;
+
+      document.querySelectorAll('.filter-tab').forEach(btn => {
+        const isMatch = btn.getAttribute('data-filter') === filterCode;
+        if (isMatch) {
+          btn.className = 'filter-tab px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-500 text-white transition shadow-sm';
+        } else {
+          btn.className = 'filter-tab px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition';
+        }
+      });
+
+      const filteredList = filterCode === 'ALL'
+        ? LICENSED_EXCHANGES
+        : LICENSED_EXCHANGES.filter(ex => ex.countryCode === filterCode);
+
+      const t = I18N[currentLang];
+      const grid = document.getElementById('exchanges-grid');
+
+      grid.innerHTML = filteredList.map(ex => `
+        <div class="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-950/60 p-5 flex flex-col justify-between hover:border-emerald-500/50 transition">
+          <div>
+            <div class="flex items-center justify-between gap-2 mb-3">
+              <span class="inline-flex items-center space-x-1.5 text-xs font-bold px-2.5 py-1 rounded-md bg-slate-200/70 dark:bg-slate-800 text-slate-700 dark:text-slate-200">
+                <span>${ex.flag}</span>
+                <span>${ex.countryName[currentLang]} (${ex.countryCode})</span>
+              </span>
+              <span class="text-[11px] font-semibold px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                ✓ ${ex.regulator}
+              </span>
+            </div>
+
+            <h3 class="text-base font-bold text-slate-900 dark:text-white mb-1.5">${ex.name}</h3>
+
+            <p class="text-xs text-slate-600 dark:text-slate-400 leading-relaxed mb-3">
+              ${ex.desc[currentLang]}
+            </p>
+          </div>
+
+          <div class="pt-3 border-t border-slate-200/80 dark:border-slate-800 space-y-3">
+            <div class="text-[11px] text-slate-500 dark:text-slate-400">
+              <span class="font-semibold text-slate-700 dark:text-slate-300">${t.paymentLabel}</span> ${ex.paymentMethods}
+            </div>
+
+            <a href="${ex.url}" target="_blank" rel="noopener noreferrer"
+              class="w-full inline-flex items-center justify-center space-x-1.5 py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition shadow-sm">
+              <span>${t.visitBtnText}</span>
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
+              </svg>
+            </a>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    // 切换语言
+    function changeLanguage(lang) {
+      currentLang = lang;
+      const t = I18N[lang];
+      document.getElementById('nav-title').textContent = t.navTitle;
+      document.getElementById('nav-subtitle').textContent = t.navSubtitle;
+      document.getElementById('notice-title').textContent = t.noticeTitle;
+      document.getElementById('notice-desc').textContent = t.noticeDesc;
+      document.getElementById('calc-title').textContent = t.calcTitle;
+      document.getElementById('label-usdt').textContent = t.labelUsdt;
+      document.getElementById('label-fiat').textContent = t.labelFiat;
+      document.getElementById('quick-amount-label').textContent = t.quickAmountLabel;
+      document.getElementById('edit-rate-btn-text').textContent = t.editRateBtn;
+      document.getElementById('manual-mode-hint').textContent = t.manualModeHint;
+      document.getElementById('board-title').textContent = t.boardTitle;
+      document.getElementById('sync-btn-text').textContent = t.syncBtnText;
+      document.getElementById('rate-disclaimer').textContent = t.rateDisclaimer;
+      document.getElementById('guide-title').textContent = t.guideTitle;
+      document.getElementById('guide-subtitle').textContent = t.guideSubtitle;
+      document.getElementById('footer-note').textContent = t.footerNote;
+
+      const allBtn = document.querySelector('[data-filter="ALL"]');
+      if (allBtn) allBtn.textContent = t.filterAll;
+
+      const currentUsdt = parseFloat(document.getElementById('input-usdt').value) || 0;
+      document.getElementById('board-subtitle').innerHTML = `${t.boardSubtitlePrefix} <span id="summary-usdt-count" class="font-bold text-emerald-500">${formatNumber(currentUsdt, 0)}</span> ${t.boardSubtitleSuffix}`;
+
+      updateStatusUI(isManualMode ? 'manual' : (lastUpdateTime ? 'live' : 'fallback'));
+      calcFromUsdt();
+      filterExchanges(currentFilter);
+    }
+
+    // 切换深色/浅色主题
+    function toggleTheme() {
+      const html = document.documentElement;
+      const isDark = html.classList.toggle('dark');
+      document.getElementById('icon-sun').classList.toggle('hidden', isDark);
+      document.getElementById('icon-moon').classList.toggle('hidden', !isDark);
+    }
+
+    // 页面加载初始化
+    window.addEventListener('DOMContentLoaded', () => {
+      renderRateEditor();
+      calcFromUsdt();
+      filterExchanges('ALL');
+      fetchLiveRates();
+      setInterval(() => fetchLiveRates(false), 300000);
+    });
+  </script>
+</body>
+</html>
